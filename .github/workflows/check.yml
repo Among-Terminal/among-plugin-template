@@ -1,0 +1,21 @@
+name: Check
+
+# Formats, lints, tests, builds and packages the plugins on native amd64 and
+# arm64 and assembles the release catalogue, exactly as a release would, but
+# publishes nothing. The called workflow is pinned to a full commit SHA: a
+# branch or tag reference could change what runs here without a commit in
+# this repository.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    uses: Among-Terminal/among-plugins/.github/workflows/plugin-release.yml@431a0830750368734cad7a703e6fc54e49814d2b
+    with:
+      publish: false

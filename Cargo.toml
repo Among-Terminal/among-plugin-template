@@ -1,0 +1,15 @@
+[package]
+name = "hello-status"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+serde_json = "1"
+
+[[bin]]
+# The release binary must have the file name of the manifest's entrypoint.
+name = "hello-status"
+path = "src/main.rs"

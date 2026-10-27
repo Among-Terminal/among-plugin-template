@@ -1,0 +1,23 @@
+name: Release
+
+# A version tag builds both architectures and publishes an immutable release
+# that Among can install. Only the publish job of the called workflow receives
+# this job's write token, and it runs none of this repository's code. Runs for
+# the same tag wait for each other instead of publishing twice.
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: plugin-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    uses: Among-Terminal/among-plugins/.github/workflows/plugin-release.yml@431a0830750368734cad7a703e6fc54e49814d2b
