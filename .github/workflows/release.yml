@@ -20,4 +20,4 @@ jobs:
   release:
     permissions:
       contents: write
-    uses: Among-Terminal/among-plugins/.github/workflows/plugin-release.yml@431a0830750368734cad7a703e6fc54e49814d2b
+    uses: Among-Terminal/among-plugins/.github/workflows/plugin-release.yml@783c9b07d3a307e89260ae875987945d0885070a
