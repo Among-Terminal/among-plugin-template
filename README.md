@@ -67,6 +67,8 @@ immutable release with one package per architecture, the source delivery,
 changed; a mistake ships as a new version. What the workflow does, and what to
 do when a run stops, is described in
 [the release guide](https://github.com/Among-Terminal/among-plugins/blob/main/docs/author-release.md).
+How plugin versions, release snapshots and release candidates work is in
+[docs/releasing.md](docs/releasing.md).
 
 ## Licence
 
