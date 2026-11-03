@@ -4,10 +4,14 @@ name: Release
 # that Among can install. Only the publish job of the called workflow receives
 # this job's write token, and it runs none of this repository's code. Runs for
 # the same tag wait for each other instead of publishing twice.
+#
+# Candidate tags such as v1.0.0-rc.1 contain a hyphen and are excluded: this
+# workflow publishes stable releases only, and a candidate published through it
+# would become the repository's latest release.
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', '!v*-*']
 
 concurrency:
   group: plugin-release-${{ github.ref }}

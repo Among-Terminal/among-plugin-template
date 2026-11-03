@@ -50,7 +50,9 @@ latest release, so ordinary installation does not see it, and Among's developmen
 testing.
 
 The tag workflow of this template publishes stable releases only: it does not pass the
-`prerelease` input. To publish a candidate, call the reusable workflow from a workflow
+`prerelease` input, and its trigger excludes tags that contain a hyphen (`!v*-*`), so
+pushing `v1.0.0-rc.1` starts no release at all (a candidate published through it would
+become the latest release). To publish a candidate, call the reusable workflow from a workflow
 that you start by hand, with `publish`, `prerelease: true` and the three prepared inputs
 (run, artifact and checksum of a preparation you have inspected), as described in the
 [release guide](https://github.com/Among-Terminal/among-plugins/blob/main/docs/author-release.md#publishing-approved-preparation-bytes).
