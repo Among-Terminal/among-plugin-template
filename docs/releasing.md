@@ -32,9 +32,32 @@ The tag is a label of the snapshot, not a plugin version. A tag such as
 catalogue describes only that release, and the release workflow accepts only tags of the
 form `v[A-Za-z0-9._-]`.
 
-Before tagging, raise the manifest version of every plugin that changed since the
-previous release, commit, and wait for the `Check` workflow to pass on that commit. The
-`Check` workflow builds and packages exactly as a release would and publishes nothing.
+## Making a release
+
+A release goes through a release pull request, so that the versions are raised once, for
+every plugin that changed, and checked before anything is tagged:
+
+1. Open a pull request titled `chore(release): v<label>` (for a candidate,
+   `chore(release): v<label>-rc.N`) that raises the `version` in `plugins/<id>/among-plugin.json`
+   of every plugin that changed since the previous release, and changes nothing else. The
+   `Check` workflow builds and packages exactly as a release would and publishes nothing; wait
+   for it, and for `pr-title`, to pass.
+2. Merge it (squash). Do not change the plugins in the same pull request.
+3. Create the tag `v<label>` on the merge commit and push it to `origin`. A stable tag, one
+   without a hyphen, starts the `Release` workflow, which publishes the immutable release.
+   Any tag with a hyphen, a candidate included, starts nothing; see
+   [Release candidates](#release-candidates).
+
+The official repository automates steps 1 and 3 with `among-tools plugin-release-pr`, which
+works out the label and the versions from the Conventional Commit titles, and a workflow
+that creates the tag after it verified the merge commit. This template does not carry those
+tools; follow the same steps by hand, or copy them from the official repository. See its
+[release guide](https://github.com/Among-Terminal/among-plugins/blob/main/docs/releasing.md#the-release-pull-request).
+
+The release gets a description written for people (what the release is, a table of the
+plugins with version, plugin API and package links, how to install and verify, the source
+commit and runs). The machine line that ties the release to its run stays at the end of the
+description inside an HTML comment, which GitHub does not show; do not edit it.
 
 The official plugin repository enforces this with `among-tools changed-plugins`, which
 compares each plugin's packaged content with the previous release on every pull request.
@@ -60,7 +83,8 @@ The stable release is then the tag `v<label>` on the same commit with the same b
 you fix something after a candidate, raise that plugin's version and make another
 candidate.
 
-Tagging and publishing are your decisions: no pull request creates a tag or a release.
+Tagging and publishing are your decisions: in this template no pull request creates a tag
+or a release.
 
 ## Pull requests
 
