@@ -43,8 +43,9 @@ every plugin that changed, and checked before anything is tagged:
    `Check` workflow builds and packages exactly as a release would and publishes nothing; wait
    for it, and for `pr-title`, to pass.
 2. Merge it (squash). Do not change the plugins in the same pull request.
-3. Create the tag `v<label>` on the merge commit. A stable tag starts the `Release`
-   workflow, which publishes the immutable release. A candidate tag starts nothing; see
+3. Create the tag `v<label>` on the merge commit and push it to `origin`. A stable tag, one
+   without a hyphen, starts the `Release` workflow, which publishes the immutable release.
+   Any tag with a hyphen, a candidate included, starts nothing; see
    [Release candidates](#release-candidates).
 
 The official repository automates steps 1 and 3 with `among-tools plugin-release-pr`, which
