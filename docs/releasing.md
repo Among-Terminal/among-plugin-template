@@ -144,11 +144,15 @@ inventory may contain at most 64 assets, all uploaded, each with a valid size
 and SHA-256 digest. This includes assets not selected for the host. There must
 be exactly one `among-plugins.json`.
 
-The selected release tag must resolve to each version's `revision`. Among
-checks the catalogue against the observed release, selects a compatible
-artifact, and verifies its size and hash. Archive inspection verifies member
-paths, types, sizes, hashes and executable flags, then the manifest and
-entrypoint. It does not execute the plugin during inspection.
+The selected release tag must resolve to every listed version's `revision`.
+Every declared artifact must be present in that same release with the declared
+size and hash, including artifacts for other architectures and plugins. A
+version-level `release` field is rejected as unknown. Among 0.2.0 cannot use it
+to fetch an unchanged plugin's package from an earlier release.
+
+Among selects a compatible artifact. Archive inspection verifies member paths,
+types, sizes, hashes and executable flags, then the manifest and entrypoint.
+It does not execute the plugin during inspection.
 
 Before committing the installation, Among rechecks repository identity,
 publisher, release inventory and tag resolution. A change requires a new
@@ -175,8 +179,8 @@ reproducible build or independently authenticate the publisher.
 ## Versions
 
 Each plugin has its own version in `plugins/<id>/among-plugin.json`. Raise it
-when its packaged content changes, including executable, manifest, attribution
-or dependency files. Keep unchanged plugins at their existing versions. Use
+when its packaged content or source revision changes, including changes to the
+executable, manifest, attribution or dependency files. Use
 semantic versioning: patch for a fix, minor for an added capability and major
 for a breaking change such as removed settings.
 
@@ -185,6 +189,11 @@ Among orders updates only for complete Semantic Versioning strings such as
 validation but have no update order. Lower versions are refused. The same
 version with different manifest bytes, package bytes or source commit is a
 publisher inconsistency.
+
+In a repository with several plugins, unchanged package bytes do not exempt a
+listed plugin from the [selected-release rules](#repository-releases-and-install-verification).
+If the new tag resolves to a different commit, each listed plugin needs a new
+version to remain eligible for updates from its previous installation.
 
 The Cargo package version is not the version Among reads. You can keep it equal
 to the manifest version for consistent build output. Protocol and settings
@@ -205,8 +214,9 @@ settings. For its build, packaging and publishing procedure, follow the
 [workflow author instructions](https://github.com/Among-Terminal/among-plugins/blob/main/docs/author-release.md).
 
 1. Compare packaged content with the previous release. Open a release pull
-   request titled `chore(release): v<label>` that raises each changed plugin's
-   manifest version. Keep implementation changes in earlier pull requests.
+   request titled `chore(release): v<label>` that raises manifest versions as
+   required by the [version rules](#versions). Keep implementation changes in
+   earlier pull requests.
 2. Wait for the checks, then squash-merge the release pull request.
 3. Create a stable tag on its merge commit and push it. For example:
 
@@ -230,6 +240,12 @@ Candidate publishing requires a separate invocation configured for a
 prerelease. Follow the reusable workflow's
 [approved-preparation instructions](https://github.com/Among-Terminal/among-plugins/blob/main/docs/author-release.md#publishing-approved-preparation-bytes)
 before adding such a workflow; the template does not include one.
+
+The reusable workflow refuses a stable tag that has release candidates unless
+the call passes `candidate-tag` naming one of them, and it then publishes the
+candidate's bytes. This template's release call passes no inputs. After
+publishing `v1.0.0-rc.1`, pushing `v1.0.0` therefore fails until the caller is
+extended to pass `candidate-tag`.
 
 Use [development mode](guide.md#development-mode) to test prereleases. A later
 compatible stable release can update a prerelease installation. The same plugin

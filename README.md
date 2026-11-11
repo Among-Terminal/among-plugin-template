@@ -66,6 +66,13 @@ status areas. It does not request terminal context.
 
 ### Check and release
 
+The `cargo +1.98.1` commands require rustup's Cargo proxy. Install rustup if it
+is missing, then install the toolchain with the formatter and linter:
+
+```sh
+rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+```
+
 Run the template checks:
 
 ```sh

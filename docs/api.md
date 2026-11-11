@@ -41,6 +41,9 @@ The host starts an enabled, reviewed plugin in its package directory and sends
 `managed_hello`. The plugin must answer within five seconds. Only after that
 exchange may it answer status requests or use granted features. If settings are
 available and granted, the host sends `configure` after the handshake.
+Configuration and status are independent exchanges. The host can request status
+while configuration is pending or rejected. Answer each status request within
+its deadline, using empty fragments or an unavailable label if necessary.
 
 ```mermaid
 sequenceDiagram
@@ -48,13 +51,16 @@ sequenceDiagram
     participant P as Plugin process
     H->>P: managed_hello
     P->>H: managed_hello
-    opt Settings granted and declared
-        H->>P: configure
-        P->>H: configured
-    end
-    loop Host requests status
-        H->>P: status with request_id and scope
-        P->>H: status with matching request_id
+    par Configuration exchange
+        opt Settings granted and declared
+            H->>P: configure
+            P->>H: configured
+        end
+    and Status exchange
+        loop Host requests status
+            H->>P: status with request_id and scope
+            P->>H: status with matching request_id
+        end
     end
     H->>P: shutdown (best effort)
     Note over H,P: EOF or termination also ends this generation
@@ -239,9 +245,14 @@ does not accept GTK widgets, CSS or terminal input. Long labels are shortened.
 Meters change colour continuously from green through yellow to red as their
 value rises from `0` to `1`.
 
-`refresh_ms` may be omitted or null for event-driven collection. An integer
-requests timed collection, up to `3600000` ms. The validator accepts `0`; use a
-positive interval to avoid requesting collection on every host polling cycle.
+For ordinary slots, omitted or null `refresh_ms` schedules no timed collection.
+Terminal events do not make an existing contribution due again in Among 0.2.0.
+For example, a working-directory change can leave displayed content stale even
+when the plugin receives `working_directory_changed`. Use a positive interval
+for content that changes; an unsolicited status reply cannot update it.
+
+An integer requests timed collection, up to `3600000` ms. The validator accepts
+`0`, which requests collection on every host polling cycle.
 For ordinary slots, the interval starts when the host receives and applies the
 response. Backpressure can delay the next request: the host waits for transport
 capacity and an available reply slot. Treat the interval as a scheduling request.
@@ -292,11 +303,25 @@ Ungranted fields are omitted. Granted but unknown `cwd` and `title` are null.
 Text beyond 4096 UTF-8 bytes or 8192 bytes after JSON encoding is replaced with
 null and named in `unavailable`.
 
-Pages contain at most 32 terminals, with the terminal array bounded to 28 KiB.
+Pages contain at most 32 terminals. The host applies a 28 KiB limit to the
+serialized terminal array before adding `notification_generation` fields.
+With notification grants, the transmitted array can therefore exceed 28 KiB.
+The complete message remains subject to the [frame limit](#transport-and-lifecycle).
+
 Use `next_cursor` in an `enumerate` request for the same scope. Omit `cursor` or
-use null for the first page. Choose a request ID and wait for `context_page`
-before requesting another page; only one pending enumeration is allowed.
+use null for the first page. Choose a request ID and allow only one pending
+enumeration. Use the matching `context_page` to continue pagination.
 Enumeration requires `context.terminals`, but does not require `status`.
+
+If a pane closes or a workspace-header target becomes inactive before the host
+handles the request or sends its page, it can discard the enumeration without
+sending `context_page` or an error. Give the local wait a timeout and keep
+handling other messages. Stop pagination when the target is known to be stale.
+
+A local timeout does not cancel a request still pending at the host. If retrying
+while its state is unknown, resend the same request ID, scope and cursor; the
+host ignores an identical pending request. Sending a different enumeration
+while one is pending faults the plugin. Do not treat silence as an empty page.
 
 Plugin to host, assuming the pane is live and terminal context is granted:
 
