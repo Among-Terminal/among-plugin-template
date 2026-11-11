@@ -1,76 +1,100 @@
 # Among plugin template
 
-A starting point for a plugin for [Among Terminal](https://github.com/Among-Terminal/among):
-one Rust managed plugin, `hello-status`, that shows a short greeting where
-Among asks for status, with CI that builds, tests and packages it for Linux
-amd64 and arm64, and a tag workflow that publishes an installable release.
+A Rust template for [Among Terminal](https://among-terminal.github.io/) plugins.
+The `hello-status` executable answers status requests with a greeting. It uses
+managed plugin API 1.2, implemented in Among 0.2.0.
 
-> **Status.** Among installs plugins from a repository's latest immutable
-> release with the release format this template produces. That installer is
-> part of Among 0.2.0 and is still being implemented: until it ships, releases
-> made from this template build and publish, but Among cannot install them yet.
+This repository contains the plugin author guide and API reference. For terminal
+usage and plugin installation, use the [Among website](https://among-terminal.github.io/plugins/).
+For work on Among itself, see [Contributing](https://github.com/Among-Terminal/among/blob/main/CONTRIBUTING.md).
 
-## Start a plugin
+## Quick start
 
-1. **Use this template** on GitHub to create your repository.
-2. In the repository settings, enable **immutable releases**. Among only
-   installs from immutable releases, and the
-   release workflow cannot check this setting for you.
-3. Make sure the repository's Actions settings allow public reusable workflows: the
-   workflows here call `Among-Terminal/among-plugins`.
-4. Add the repository topic `among-plugins`, so a future plugin registry can
-   find it.
-5. Rename the plugin: the directory `plugins/hello-status/`, the manifest's
-   `id`, `name`, `description` and `entrypoint`, and the `[[bin]]` name in
-   `Cargo.toml`. The binary's file name must equal the last part of
-   `entrypoint`.
+### Create and build
 
-## What a plugin is
+1. Choose "Use this template" on GitHub and clone your new repository.
+2. Start with `hello-status`. When renaming it, update these locations:
 
-Among starts the executable named by `entrypoint` and exchanges one JSON
-object per line over stdin and stdout. `src/main.rs` implements the managed
-API 1.2 handshake (`managed_hello`), answers `status` requests with fragments
-and stops on `shutdown`. Change `fragments` to show your own content. If your
-plugin needs more than `status`, add the features to both the manifest's
-`required_features` and the `FEATURES` constant.
+   - Rename `plugins/hello-status/` and update the manifest's `id`, `name`,
+     `description` and `entrypoint`.
+   - Update both `[package].name` and `[[bin]].name` in `Cargo.toml`. Refresh
+     the corresponding package entry in `Cargo.lock` before running the
+     `--locked` checks.
+   - In `src/main.rs`, update the manifest test's
+     `include_str!("../plugins/hello-status/among-plugin.json")` path and
+     `assert_eq!(manifest["entrypoint"], "bin/hello-status")` expectation.
+     The binary filename must match the last component of `entrypoint`.
+   - In the same file, update the manifest path in the module comment. Keep
+     both `github:1/hello-status` handshake fixture identities consistent if
+     you rename them; the test checks that the reply echoes the supplied identity.
+   - Update the executable name and build-output path in this README, and
+     the manifest link's text and target in `docs/guide.md`.
+   - Adapt the package tree, build and manifest paths, archive filename and
+     `members` example in `docs/releasing.md`. Its `hello-status/v1.2.3`
+     example illustrates an unsupported tag format; keep release tags in
+     the documented `v*` form.
 
-The full protocol, features, settings and fragment format are described in
-[Among's plugin guide](https://github.com/Among-Terminal/among/blob/main/docs/plugins.md).
-Until Among 0.2.0 is released, that guide on `main` still describes the
-previous plugin model.
+   The local files in `.github/workflows/` contain no hardcoded `hello-status`
+   references to rename. After renaming, run the [template checks](#check-and-release).
+3. Build from the repository root:
 
-## Develop
+```sh
+cargo build --release --locked
+```
+
+The default build produces `target/release/hello-status`. Edit `fragments` in
+[`src/main.rs`](src/main.rs) to change the greeting. The
+[author guide](docs/guide.md) explains how to add capabilities and handle scopes.
+
+### Try it in Among
+
+Prepare a package containing the build output and manifest, with an adjacent
+schema-2 `among-plugins.json`. Follow [local package preparation](docs/releasing.md#prepare-a-local-package)
+for the layout and metadata. Copying the raw executable into a plugin directory
+does not register it with Among.
+
+Quit Among, then start:
+
+```sh
+among --plugin-development
+```
+
+Use the local catalogue flow in [development mode](docs/guide.md#development-mode)
+to test the package. The template accepts the local identity supplied by Among.
+After enabling it with its requested access, expect `hello` in the application
+status areas. It does not request terminal context.
+
+### Check and release
+
+The `cargo +1.98.1` commands require rustup's Cargo proxy. Install rustup if it
+is missing, then install the toolchain with the formatter and linter:
+
+```sh
+rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+```
+
+Run the template checks:
 
 ```sh
 cargo +1.98.1 fmt --all --check
 cargo +1.98.1 clippy --locked --all-targets -- -D warnings
 cargo +1.98.1 test --locked --all-targets
-cargo +1.98.1 build --release --locked
 ```
 
-Pull requests run `.github/workflows/check.yml`: the same checks plus
-packaging and the release catalogue on native amd64 and arm64, without
-publishing anything.
+The [Check workflow](.github/workflows/check.yml) calls the pinned reusable
+workflow with `publish: false`. The [Release workflow](.github/workflows/release.yml)
+calls it on stable `v*` tags. Review [packaging and releases](docs/releasing.md)
+before publishing, including version selection and immutable-release settings.
 
-## Release
+## Documentation
 
-Update `version` in the manifest, commit, then push a tag:
-
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-`.github/workflows/release.yml` builds both architectures and publishes an
-immutable release with one package per architecture, the source delivery,
-`among-plugins.json` and `SHA256SUMS`. A published immutable release cannot be
-changed; a mistake ships as a new version. What the workflow does, and what to
-do when a run stops, is described in
-[the release guide](https://github.com/Among-Terminal/among-plugins/blob/main/docs/author-release.md).
-How plugin versions, release snapshots and release candidates work is in
-[docs/releasing.md](docs/releasing.md).
+| Page | Contents |
+| --- | --- |
+| [Author guide](docs/guide.md) | Process model, access, settings, confinement, development mode and testing. |
+| [API reference](docs/api.md) | Messages, manifest fields, grants, scopes, limits and JSON exchanges. |
+| [Packaging and releases](docs/releasing.md) | Package layout, catalogue, verification, versions and publishing. |
 
 ## Licence
 
-This template is licensed under Apache-2.0 (`LICENSE`). Replace it with your
-own licence for your plugin; packaging requires a `LICENSE` file.
+This template uses [Apache-2.0](LICENSE). Choose the licence for your plugin and
+include the required licensing and attribution material in its package.
