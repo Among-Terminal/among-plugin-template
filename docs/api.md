@@ -318,10 +318,14 @@ handles the request or sends its page, it can discard the enumeration without
 sending `context_page` or an error. Give the local wait a timeout and keep
 handling other messages. Stop pagination when the target is known to be stale.
 
-A local timeout does not cancel a request still pending at the host. If retrying
-while its state is unknown, resend the same request ID, scope and cursor; the
-host ignores an identical pending request. Sending a different enumeration
-while one is pending faults the plugin. Do not treat silence as an empty page.
+A local timeout does not cancel the request or make a retry safe, even with the
+same request ID, scope and cursor. Keep the original request outstanding and
+continue handling other messages. The host ignores an identical request only
+while the original is pending. It clears that pending state when it queues the
+page, before the plugin receives it. A retry can then create another pending
+request; sending a different enumeration while that request is pending faults
+the plugin. If the original request's outcome cannot be resolved, restart the
+generation instead of retrying. Do not treat silence as an empty page.
 
 Plugin to host, assuming the pane is live and terminal context is granted:
 
