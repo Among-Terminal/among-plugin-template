@@ -131,11 +131,18 @@ It can execute programs from the package and system directories. The
 `system.metrics` grant adds the read-only files listed in the
 [feature reference](api.md#feature-grants).
 
+Under Landlock, `/proc/self` is unreadable even with `system.metrics`.
+Your language runtime must tolerate denied reads from `/proc/self/...` during
+startup. Filesystem usage queries through `statvfs` need no feature grant.
+
 Seccomp blocks network and local sockets, debugging and memory access to other
 processes, signal sending, shared IPC and selected kernel operations. It also
 blocks changes to file metadata, including permissions, ownership, timestamps
 and extended attributes. Plan data writes without relying on `chmod`, `chown`
 or timestamp changes at runtime.
+
+Denied operations return `EPERM` or `EACCES`. A system call using a foreign ABI
+kills the process instead. On x86-64, x32 system calls also kill the process.
 
 | Available protection | Author-visible behavior |
 | --- | --- |
@@ -192,6 +199,12 @@ Local identity is `development/<plugin-id>`; repository identity is
 admission. Local packages have no verified repository, publisher or release
 provenance.
 
+A published binary that checks a compiled
+`github:<numeric-repository-id>/<plugin-id>` identity rejects the local identity.
+If it exits and closes stdout during that check, Among reports
+"plugin stdout closed". Install that binary from its release or prerelease, or
+build a version that accepts `development/<plugin-id>` for local testing.
+
 Replacing a local installation or replacing an installed package with a
 prerelease requires confirmation. It starts disabled without the previous
 access grants, and the previous generation remains available. Development and
@@ -231,5 +244,8 @@ admission, rendering or confinement.
 - [Environment](https://github.com/Among-Terminal/among/blob/v0.2.0/src/plugin/host/environment.rs),
   [sandbox policy](https://github.com/Among-Terminal/among/blob/v0.2.0/src/plugin/sandbox/policy.rs)
   and [protection levels](https://github.com/Among-Terminal/among/blob/v0.2.0/src/plugin/sandbox/level.rs).
+- [Landlock rules](https://github.com/Among-Terminal/among/blob/v0.2.0/src/plugin/sandbox/launch.rs)
+  and [seccomp filter](https://github.com/Among-Terminal/among/blob/v0.2.0/src/plugin/sandbox/bpf.rs).
 - [Local installation](https://github.com/Among-Terminal/among/blob/v0.2.0/src/plugin/install/local.rs)
-  and [plugin manager](https://github.com/Among-Terminal/among/blob/v0.2.0/src/prefs/plugin_manager.rs).
+  and [plugin manager](https://github.com/Among-Terminal/among/blob/v0.2.0/src/prefs/plugin_manager.rs),
+  with [process transport errors](https://github.com/Among-Terminal/among/blob/v0.2.0/src/plugin/process.rs).

@@ -257,6 +257,10 @@ collects summaries every three seconds instead of using `refresh_ms`. In the
 current implementation, an empty summary reply leaves an existing summary in
 place; do not rely on it to clear the sidebar entry.
 
+Several plugins may each contribute one summary to the same workspace. The
+sidebar shows all of them. A nonempty reply replaces only that plugin's summary;
+returning extra fragments does not displace another plugin's content.
+
 ## Terminal context and enumeration
 
 Every context contains `session`. Without `context.terminals`, application
