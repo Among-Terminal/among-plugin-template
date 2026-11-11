@@ -235,12 +235,16 @@ Each fragment has these optional fields:
 
 A fragment needs nonempty text or a nonempty icon name. A reply may contain at
 most 64 fragments. The host controls fonts, placement and rendering; the API
-does not accept GTK widgets, CSS or terminal input.
+does not accept GTK widgets, CSS or terminal input. Long labels are shortened.
+Meters change colour continuously from green through yellow to red as their
+value rises from `0` to `1`.
 
 `refresh_ms` may be omitted or null for event-driven collection. An integer
 requests timed collection, up to `3600000` ms. The validator accepts `0`; use a
 positive interval to avoid requesting collection on every host polling cycle.
-This is a scheduling request, not an exact timer.
+For ordinary slots, the interval starts when the host receives and applies the
+response. Backpressure can delay the next request: the host waits for transport
+capacity and an available reply slot. Treat the interval as a scheduling request.
 
 Return empty content for ordinary scopes your plugin does not use. Lower numeric
 priorities appear first, with plugin identity breaking ties. Status fragments
@@ -342,7 +346,7 @@ Plugin to host, after applying the values:
 
 | `outcome` | Meaning |
 | --- | --- |
-| `applied` | The current process applied this revision. The host invalidates its previous content. |
+| `applied` | The current process applied this revision. The host invalidates its previous status content, notification contributions and queued actions. |
 | `rejected` | The process did not apply it. Optional `reason` defaults to `invalid_configuration`. |
 | `restart_required` | Applying it requires a new process. |
 
@@ -364,6 +368,11 @@ to a running plugin mark it as requiring restart instead of sending a live edit.
 Notification events, visible notification content and delivery jobs are separate
 messages. Producing an event does not itself create a custom widget or select a
 delivery channel. The host applies the user's notification policies.
+
+Pending notification work lasts only for the current session. The host does
+not save pending jobs, contributions or action handles in saved sessions.
+Delivery results never become notification events. The host does not
+automatically retry delivery jobs or replay them after a restart.
 
 ### Producing an event
 
@@ -387,6 +396,28 @@ must not contain control characters or bidi override/isolate characters.
 ```
 
 There is no success acknowledgement or rejection frame for this message.
+
+An application-target event has no pane or workspace. For enabled channels,
+the Always policy can match it. Application-background eligibility requires
+that no application-owned window is active. Originating-terminal-unfocused
+eligibility never matches an application-target event, and the event cannot
+mark a pane unread.
+
+The shared delivery queue holds at most 64 jobs globally and 16 per channel.
+Pending events for the same channel and source coalesce: the newer event
+replaces the pending one. Application-target events use the producer's identity
+and generation for coalescing and delivery cooldown; pane-target events use the
+terminal source. These delivery rules are separate from the per-producer
+cooldown above. Work from another source or producer can proceed while one is
+cooling down. A full channel drops incoming work from a new source or producer;
+the global queue balances capacity across sources and producers and can also
+drop work.
+
+The host retains at most 64 event envelopes for ten seconds. It drops queued
+work whose envelope has expired or been evicted. Envelopes for active provider
+jobs stay within that budget and are protected from eviction by fresh traffic;
+expiry and revocation still apply. Do not assume each submitted event will
+produce a delivery job.
 
 ### Visible content and actions
 
@@ -432,11 +463,24 @@ Withdrawal does not reset an ID's revision history. Old callbacks cannot operate
 on a newer revision or a replacement process. Action activation is limited to
 once per 250 ms for a contribution, with at most 16 queued actions globally.
 
+Contribution text and action labels are plain text. Icons use theme names or
+the inspected package artwork; wire messages cannot select image paths or URLs.
+Unavailable icons are omitted.
+
+Replacing, withdrawing or expiring a contribution also makes its queued actions
+inert. Disabling or restarting the plugin revokes its content and actions.
+[Configuration](#configuration) defines invalidation after an applied settings
+revision. Keep revision numbers increasing when submitting replacement content.
+
 ### Delivery providers
 
 `notifications.deliver` permits delivery through channels declared in the
 manifest and enabled by the user. It does not permit the provider to produce
-notification events. The host sends `deliver.delivery` with these fields:
+notification events. Each channel is identified by the installed plugin's full
+identity and the manifest's local channel ID; display names are not keys.
+New channels start disabled with application-background eligibility. Enabling
+a channel does not start its provider. The host sends `deliver.delivery` with
+these fields:
 
 | Field | Type |
 | --- | --- |
@@ -450,6 +494,8 @@ host events, or an object with producer `identity` and `generation` strings.
 `source` is null or an object with `pane`, `generation` and `workspace` strings.
 Without `context.terminals`, the host sends `source: null`. `message` is a string
 or null. These IDs and provenance fields are assigned by the host.
+Source metadata contains no terminal input or output, working directory, title,
+process command line, inherited environment or TTY metadata.
 
 ```json
 {"type":"deliver","session":"session-example","generation":"generation-example","delivery":{"job_id":1,"channel":"example","event":{"event_id":"42","causal_id":"42","core_session":"9","kind":"terminal_bell","origin":null,"source":null,"message":null}}}
@@ -463,6 +509,12 @@ Reply within five seconds:
 
 `outcome` is one of `accepted`, `refused`, `failed` or `uncertain`. Use
 `uncertain` when an external effect may have occurred but its result is unknown.
+
+`accepted` records the provider's local claim. It proves neither remote receipt
+nor exactly-once delivery. The host accepts a result only from the process that
+owns the active job; wrong, duplicate, late or revoked results cannot replace
+the recorded outcome.
+
 The host permits at most two active provider jobs globally and one per channel;
 a serialized delivery request is limited to 16 KiB.
 
@@ -472,10 +524,17 @@ The host may cancel an attempt:
 {"type":"cancel_delivery","session":"session-example","generation":"generation-example","job_id":1}
 ```
 
-Stop the associated work when cancelled. Cancellation and timeout do not prove
-that an external effect was undone. Late results cannot replace the recorded
-outcome. Delivery timeouts fault the provider process; restarting does not replay
-these jobs.
+Policy changes or revocation of a source, producer or provider can cancel active
+work. The host attempts to send cancellation to the same provider generation
+if it is still running. Receipt is not guaranteed. Stop the associated work
+when cancelled. The host records cancellation and timeout as uncertain;
+neither proves that an external effect was undone.
+
+A cancelled job still occupies a pending reply slot until its `delivery_result`
+arrives or the process stops. Send a result within the original five-second
+deadline even after cancellation. That reply releases the slot without
+replacing the recorded outcome. An unanswered job faults the provider process
+at the deadline, including a job that was already cancelled.
 
 ## Errors and failure handling
 
