@@ -13,10 +13,29 @@ For work on Among itself, see [Contributing](https://github.com/Among-Terminal/a
 ### Create and build
 
 1. Choose "Use this template" on GitHub and clone your new repository.
-2. Start with `hello-status`. When renaming it, update the directory under
-   `plugins/`, the manifest's `id`, `name`, `description` and `entrypoint`, and
-   the `[[bin]]` name in `Cargo.toml`. The binary filename must match the last
-   component of `entrypoint`.
+2. Start with `hello-status`. When renaming it, update these locations:
+
+   - Rename `plugins/hello-status/` and update the manifest's `id`, `name`,
+     `description` and `entrypoint`.
+   - Update both `[package].name` and `[[bin]].name` in `Cargo.toml`. Refresh
+     the corresponding package entry in `Cargo.lock` before running the
+     `--locked` checks.
+   - In `src/main.rs`, update the manifest test's
+     `include_str!("../plugins/hello-status/among-plugin.json")` path and
+     `assert_eq!(manifest["entrypoint"], "bin/hello-status")` expectation.
+     The binary filename must match the last component of `entrypoint`.
+   - In the same file, update the manifest path in the module comment. Keep
+     both `github:1/hello-status` handshake fixture identities consistent if
+     you rename them; the test checks that the reply echoes the supplied identity.
+   - Update the executable name and build-output path in this README, and
+     the manifest link's text and target in `docs/guide.md`.
+   - Adapt the package tree, build and manifest paths, archive filename and
+     `members` example in `docs/releasing.md`. Its `hello-status/v1.2.3`
+     example illustrates an unsupported tag format; keep release tags in
+     the documented `v*` form.
+
+   The local files in `.github/workflows/` contain no hardcoded `hello-status`
+   references to rename. After renaming, run the [template checks](#check-and-release).
 3. Build from the repository root:
 
 ```sh
